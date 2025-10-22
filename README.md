@@ -1,23 +1,21 @@
-Namaz Tracker
-A simple prayer tracking web app for personal use.
+🕌 Namaz Tracker (Offline)
+A simple **offline prayer time tracker** built for people who want to keep track of Namaz without internet connection.
 
+🌟 Features
+- Works completely **offline**
+- Tracks daily prayer times (Fajr, Dhuhr, Asr, Maghrib, Isha)
+- Simple and clean UI
+- Built with focus on privacy — no data sharing
 
-Features
-Track 5 daily prayers
-Progress tracking with calendar view
-Counter for personal use
-Mobile-friendly design
-Multiple color themes
-Local data storage
+💻 Tech Stack
+- Python for logic
+- Tkinter for UI (or mention your library)
+- JSON for local data storage
 
+🚀 Future Improvements
+- Add **location-based prayer times**
+- Integrate **adhan notifications**
+- Save daily Namaz record in a local database
 
-Quick Start
-Download all files
-Open index.html in a browser
-Start tracking
-
-
-Data
-Everything saves locally in your browser
-Export/import your data as JSON
-No server or login required
+🧠 My Role
+Designed and built the full app as a personal project to improve my programming and UI design skills.
