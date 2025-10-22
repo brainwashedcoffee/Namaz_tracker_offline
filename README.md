@@ -10,7 +10,6 @@ A simple **offline prayer time tracker** built for people who want to keep track
 
 ## 💻 Tech Stack
 - **Python** for logic
-- **Tkinter** for UI (or mention your library)
 - **JSON** for local data storage
 
 ## 🚀 Future Improvements
