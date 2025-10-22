@@ -1,0 +1,1715 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Namaz Tracker — Accents Only & Smooth Slides</title>
+<style>
+  /* Add Urdu font support */
+  @font-face {
+    font-family: 'Noto Nastaliq Urdu';
+    src: url('fonts/NotoNastaliqUrdu-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Noto Nastaliq Urdu';
+    src: url('fonts/NotoNastaliqUrdu-Medium.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  /* ============================
+     Accent variables & base rules
+     ============================ */
+  :root{
+    --bg-top:#f8f5ff;
+    --bg-bottom:#eef2ff;
+    --card:#ffffff;
+    --muted:#6b7280;
+    --text:#0b1220;
+    --accent:#7c3aed;
+    --accent-2:#5b21b6;
+    --glass: rgba(255,255,255,0.6);
+  }
+
+
+  /* Accent sets (only accents remain) */
+  html[data-accent="black"], body[data-accent="black"] {
+    --accent:#1f1f1f;
+    --accent-2:#0d0d0d;
+    --bg-top:#121212;
+    --bg-bottom:#000000;
+
+    /* extra for cards */
+    --card-bg:#0e0e0f;       /* main card background */
+    --card-border:#2f2f33;   /* subtle border */
+    --card-text:#ffffff;     /* card text */
+
+    /* extra for badges */
+    --badge-bg:#1a1a1a;
+    --badge-text:#ffffff;
+    --card-muted:#b0b0b0;  /* softer gray for muted text */
+    --text-color:#ffffff;   /* default text (headings, p, etc.) */
+
+    /* chart-only vars (used only in black accent) */
+    --chart-bar: rgba(255,255,255,0.12);
+    --chart-text: #f9fafb;
+    --chart-muted: rgba(255,255,255,0.5);
+  }
+
+  html[data-accent="purple"], body[data-accent="purple"]{ --accent:#7c3aed; --accent-2:#5b21b6; --bg-top:#f8f5ff; --bg-bottom:#eef2ff; }
+  html[data-accent="pink"], body[data-accent="pink"]{ --accent:#ec4899; --accent-2:#db2777; --bg-top:#fff0f6; --bg-bottom:#fff7fb; }
+  html[data-accent="yellow"], body[data-accent="yellow"]{ --accent:#f59e0b; --accent-2:#f97316; --bg-top:#fff9ed; --bg-bottom:#fff8e1; }
+
+
+  /* Remove tap highlight globally and remove focus outlines (user asked for no blue flash) */
+  *, *::before, *::after {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    box-sizing: border-box;
+  }
+  :focus { outline: none !important; box-shadow: none !important; }
+
+  html,body{ height:100%; }
+  body{
+    margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    color:var(--text);
+    background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+    padding: calc(18px + env(safe-area-inset-top)) 18px calc(160px + env(safe-area-inset-bottom));
+    -webkit-font-smoothing:antialiased;
+    transition: background .28s ease, color .28s ease;
+  }
+
+  .app{ max-width:1000px; margin:0 auto; display:grid; grid-template-columns: 1fr 360px; gap:18px; position:relative; overflow:hidden; align-items:start; }
+  .header{ grid-column:1/-1; display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:6px }
+  .brand{ display:flex; gap:12px; align-items:center }
+  .logo{ width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700 }
+  h1{ margin:0; font-size:18px }
+  .subtitle{ font-size:12px; color:var(--muted) }
+
+  .card{ background:var(--card); border-radius:12px; padding:14px; box-shadow:0 6px 18px rgba(16,24,40,0.06); transition: background .25s ease, color .25s ease, transform .18s; }
+  .card:active{ transform: translateY(1px); }
+
+  .today{ display:flex; flex-direction:column; gap:12px }
+  .prayer-list{ display:flex; flex-direction:column; gap:10px; margin-top:6px }
+  .prayer{ display:flex; align-items:center; gap:12px; padding:10px; border-radius:10px; cursor:pointer; transition: transform .12s ease, background .12s; border:1px solid transparent }
+  .prayer:hover{ transform: translateY(-3px) }
+  .box{ width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:linear-gradient(180deg,var(--accent),var(--accent-2)) }
+  .prayer.off .box{ background:linear-gradient(180deg,#dbeafe,#c7ddff); color:#1e293b }
+  .prayer.off{ opacity:0.9 }
+
+  .progress{ height:12px;border-radius:999px;overflow:hidden;background:linear-gradient(180deg,#e6eefc,#f0f8ff); margin-top:10px;border:1px solid rgba(0,0,0,0.03) }
+  .progress>i{ display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .35s ease-in-out }
+
+  .small{ font-size:13px;color:var(--muted) }
+  .stats-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px }
+
+  .calendar{ margin-top:12px }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px }
+  .cal-cell{ padding:8px;border-radius:8px;text-align:center; min-height:64px; background:linear-gradient(180deg,transparent,var(--glass)); transition: transform .18s, box-shadow .18s; }
+  .cal-cell:hover{ transform: translateY(-4px); box-shadow:0 6px 18px rgba(2,6,23,0.06); }
+
+  .badges{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px }
+  .badge{ padding:8px 10px;border-radius:999px;background:linear-gradient(180deg,#fff,#f3fbf7); font-weight:700 }
+
+  button, .btn{ cursor:pointer;border:0;padding:8px 12px;border-radius:10px;background:var(--accent);color:#fff;font-weight:700; -webkit-appearance:none; appearance:none; transition: transform .12s; }
+  .btn:active{ transform: translateY(1px); }
+  .btn.ghost{ background:transparent;color:var(--muted);box-shadow:none;border:1px solid rgba(0,0,0,0.04) }
+
+  canvas{ width:100%; height:120px; display:block }
+
+  /* Tasbeeh tappable area */
+  .tas-touch{ width:100%; min-height:180px; display:flex; align-items:center; justify-content:center; position:relative; border-radius:10px; cursor:pointer; background: linear-gradient(180deg, rgba(255,255,255,0.65), rgba(255,255,255,0.3)); transition: transform .12s; }
+  .tas-touch:active{ transform: scale(.997); }
+  .tas-touch .tap-note{ position:absolute; bottom:10px; left:50%; transform:translateX(-50%); color:rgba(11,18,32,0.28) }
+
+  /* Right column spacing (fix 'More' cards sticking together) */
+  .rightcol{ display:flex; flex-direction:column; gap:12px }
+  .rightcol .card{ margin-bottom:0 } /* gap on container controls spacing */
+
+  /* Cloud menu */
+  .cloud-wrap{ position:relative; display:inline-block; }
+  .cloud-btn{ background:transparent;border:0;font-size:20px;padding:6px;border-radius:10px;cursor:pointer }
+  .cloud-menu{ position:absolute; right:0; top:40px; background:var(--card); border-radius:10px; box-shadow:0 10px 30px rgba(2,6,23,0.12); padding:8px; display:none; flex-direction:column; gap:6px; z-index:2200; transition: opacity .18s, transform .18s; transform-origin: top right; }
+  .cloud-menu.show{ display:flex; opacity:1; transform: translateY(0) }
+  .cloud-menu button{ min-width:44px; min-height:44px; border-radius:8px; font-size:18px; display:flex; align-items:center; justify-content:center; padding:8px; }
+
+  /* ============================
+     Splash Screen Styles
+     ============================ */
+  #splashScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white;
+    z-index: 9999;
+    transition: opacity 0.8s ease-out;
+  }
+
+  #splashScreen.fade-out {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .splash-logo {
+    width: 100px;
+    height: 100px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 30px;
+    font-size: 42px;
+    color: white;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  .splash-hadith {
+    font-family: 'Noto Nastaliq Urdu', serif;
+    font-size: 28px;
+    line-height: 1.6;
+    text-align: center;
+    max-width: 90%;
+    margin: 0 auto 20px;
+    direction: rtl;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+  }
+
+  .splash-translation {
+    font-style: italic;
+    font-size: 16px;
+    text-align: center;
+    max-width: 80%;
+    margin: 0 auto;
+    opacity: 0.9;
+  }
+
+  .splash-loader {
+    width: 60px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    margin-top: 30px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .splash-loader::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 40%;
+    background: white;
+    border-radius: 2px;
+    animation: loading 4s linear forwards;
+  }
+
+  @keyframes loading {
+    0% { width: 0%; }
+    100% { width: 100%; }
+  }
+
+  /* bottom nav */
+  .bottom-nav{ position:fixed; left:0; right:0; bottom:0;height:64px; display:flex; gap:0; align-items:center; justify-content:space-around; background:var(--card); box-shadow:0 -8px 30px rgba(2,6,23,0.08); border-top-left-radius:12px;border-top-right-radius:12px;padding:8px 12px; z-index:1200 }
+  .bottom-nav button{ flex:1;background:transparent;border-radius:10px;color:var(--muted);font-weight:700;height:44px }
+  .bottom-nav button.active{ color:var(--accent); box-shadow: inset 0 -3px 0 rgba(0,0,0,0.03) }
+
+  /* modal/toast/inline */
+  .modal-backdrop{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.35); z-index:2000 }
+  .modal-backdrop.show{ display:flex }
+  .modal-box{ width:92%; max-width:420px; background:var(--card); border-radius:12px; padding:18px }
+  .inline-alert{ background:linear-gradient(180deg,#fff8f2,#fff0ea); padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,0.04); margin-top:10px; display:none }
+  .inline-alert.show{ display:block }
+
+  #toast{ position:fixed; left:50%; transform:translateX(-50%); top:18px; background:var(--card); padding:10px 14px; border-radius:10px; display:none; z-index:2100 }
+  #toast.show{ display:block }
+
+  .quick-stats-spacer{ height:110px }
+
+  /* Hadith section styles */
+  .hadith-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--card-text);
+    border-radius: 12px;
+    padding: 1rem;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .hadith-urdu {
+    font-family: 'Noto Nastaliq Urdu', serif;
+    font-size: 22px;
+    line-height: 1.6;
+    text-align: center;
+    margin: 20px 0;
+    direction: rtl;
+  }
+  
+  .hadith-translation {
+    font-style: italic;
+    color: var(--card-muted);
+    font-size: 14px;
+    text-align: center;
+    border-top: 1px solid var(--card-border);
+    padding-top: 15px;
+    margin-top: auto;
+  }
+  
+  .hadith-reference {
+    font-size: 12px;
+    color: var(--card-muted);
+    text-align: center;
+    margin-top: 8px;
+  }
+  
+  .hadith-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+  
+  .hadith-counter {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 13px;
+    color: var(--card-muted);
+  }
+
+  @media(max-width:920px){
+    .app{ grid-template-columns: 1fr; padding:12px; gap:12px; max-width:600px }
+    body{ padding-bottom: calc(200px + env(safe-area-inset-bottom)) }
+    /* make panels full width and positioned for animation */
+    #leftCol, #rightCol { width:100%; position:relative; }
+    .rightcol{ position:absolute; top:0; right:0; left:0; z-index:1100; }
+    
+    .hadith-urdu {
+      font-size: 20px;
+    }
+  }
+
+  @media(min-width:921px){ .bottom-nav{ display:none } }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--card-text);
+    border-radius: 12px;
+    padding: 1rem;
+  }
+
+  .cal-cell {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--card-text);
+  }
+
+  .cal-cell .muted {
+    color: #b0b0b0;
+  }
+
+  .badge {
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-weight: 600;
+  }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--card-text);
+  }
+
+  .card .muted,
+  .small.muted {
+    color: var(--card-muted);
+  }
+
+  body, h1, h2, h3, h4, h5, h6, p, span {
+    color: var(--text-color);
+  }
+
+  /* Add these variables to your :root and theme definitions */
+  :root {
+    --input-bg: #ffffff;
+    --input-text: #0b1220;
+    --input-border: rgba(0,0,0,0.06);
+    --input-placeholder: #6b7280;
+  }
+
+  /* Update the black theme to use dark input fields */
+  html[data-accent="black"], body[data-accent="black"] {
+    --input-bg: #2a2a2a;
+    --input-text: #ffffff;
+    --input-border: rgba(255,255,255,0.15);
+    --input-placeholder: #a0a0a0;
+  }
+
+  /* Apply these variables to all input fields */
+  input {
+    background: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid var(--input-border);
+  }
+
+  /* Style placeholder text */
+  input::placeholder {
+    color: var(--input-placeholder);
+    opacity: 1;
+  }
+
+  /* Specific styling for your input fields */
+  #inputName, #inputAge {
+    padding: 8px;
+    border-radius: 8px;
+    width: 100%;
+    font-family: inherit;
+    font-size: 14px;
+  }
+
+  /* Add these variables to your :root and theme definitions */
+  :root {
+    --nav-bg: #ffffff;
+    --nav-text: #6b7280;
+    --nav-active: var(--accent);
+    --nav-shadow: 0 -8px 30px rgba(2,6,23,0.08);
+  }
+
+  /* Update the black theme to use dark navigation */
+  html[data-accent="black"], body[data-accent="black"] {
+    --nav-bg: #1a1a1a;
+    --nav-text: #a0a0a0;
+    --nav-active: #ffffff;
+    --nav-shadow: 0 -8px 30px rgba(0,0,0,0.3);
+  }
+
+  /* Apply these variables to the bottom navigation */
+  .bottom-nav {
+    background: var(--nav-bg);
+    box-shadow: var(--nav-shadow);
+  }
+
+  .bottom-nav button {
+    color: var(--nav-text);
+  }
+
+  .bottom-nav button.active {
+    color: var(--nav-active);
+  }
+
+  /* Add these variables to your :root and theme definitions */
+  :root {
+    --cloud-bg: #ffffff;
+    --cloud-btn-bg: transparent;
+    --cloud-btn-hover: rgba(0,0,0,0.05);
+    --cloud-text: #0b1220;
+    --cloud-shadow: 0 10px 30px rgba(2,6,23,0.12);
+  }
+
+  /* Update the black theme to use dark cloud menu */
+  html[data-accent="black"], body[data-accent="black"] {
+    --cloud-bg: #1a1a1a;
+    --cloud-btn-bg: transparent;
+    --cloud-btn-hover: rgba(255,255,255,0.1);
+    --cloud-text: #ffffff;
+    --cloud-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+
+  /* Apply these variables to the cloud menu */
+  .cloud-menu {
+    background: var(--cloud-bg);
+    box-shadow: var(--cloud-shadow);
+  }
+
+  .cloud-menu button {
+    background: var(--cloud-btn-bg);
+    color: var(--cloud-text);
+  }
+
+  .cloud-menu button:hover {
+    background: var(--cloud-btn-hover);
+  }
+
+  /* Add these variables to your :root and theme definitions */
+  :root {
+    --toast-bg: #ffffff;
+    --toast-text: #0b1220;
+    --toast-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+
+  /* Update the black theme to use dark toast */
+  html[data-accent="black"], body[data-accent="black"] {
+    --toast-bg: #1a1a1a;
+    --toast-text: #ffffff;
+    --toast-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+
+  /* Apply these variables to the toast */
+  #toast {
+    background: var(--toast-bg);
+    color: var(--toast-text);
+    box-shadow: var(--toast-shadow);
+  }
+
+  /* Add these variables to your :root and theme definitions */
+  :root {
+    --tas-bg: linear-gradient(180deg, rgba(255,255,255,0.65), rgba(255,255,255,0.3));
+    --tas-text: #0b1220;
+    --tas-muted: rgba(11,18,32,0.28);
+  }
+
+  /* Update the black theme to use dark tasbeeh touch area */
+  html[data-accent="black"], body[data-accent="black"] {
+    --tas-bg: linear-gradient(180deg, rgba(0,0,0,0.2), rgba(0,0,0,0.4));
+    --tas-text: #ffffff;
+    --tas-muted: rgba(255,255,255,0.4);
+  }
+
+  /* Make the tasbeeh card fill the viewport */
+  #tasbeehCard {
+    min-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    margin: 0;
+    padding: 20px;
+    border-radius: 0;
+  }
+
+  /* Make the header section smaller to give more space to touch area */
+  #tasbeehCard .row {
+    margin-bottom: 15px;
+    flex-shrink: 0;
+  }
+
+  /* Make the touch area fill remaining space */
+  .tas-touch {
+    background: var(--tas-bg);
+    min-height: 65vh;
+    border-radius: 24px;
+    margin: 0;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+  }
+
+  /* Make the counter text enormous */
+  .tas-touch .count {
+    font-size: 96px;
+    font-weight: 900;
+    margin-bottom: 20px;
+  }
+
+  /* Increase the size of the note text */
+  .tas-touch .small-note {
+    font-size: 22px;
+    margin-bottom: 15px;
+  }
+
+  .tas-touch .tap-note {
+    font-size: 18px;
+    position: absolute;
+    bottom: 25px;
+  }
+
+  /* Make buttons larger for easier tapping */
+  #tasbeehCard .btn {
+    padding: 12px 18px;
+    font-size: 16px;
+    min-height: 50px;
+  }
+
+  /* Adjust alert positioning */
+  #tasInlineAlert {
+    margin-top: 20px;
+    flex-shrink: 0;
+  }
+
+  /* For mobile view, adjust sizes */
+  @media (max-width: 920px) {
+    #tasbeehCard {
+      min-height: 82vh;
+      padding: 15px;
+    }
+    
+    .tas-touch {
+      min-height: 60vh;
+      border-radius: 20px;
+    }
+    
+    .tas-touch .count {
+      font-size: 82px;
+    }
+    
+    .tas-touch .small-note {
+      font-size: 20px;
+    }
+    
+    .tas-touch .tap-note {
+      font-size: 16px;
+    }
+  }
+
+  /* For very small screens */
+  @media (max-width: 400px) {
+    #tasbeehCard {
+      min-height: 80vh;
+      padding: 12px;
+    }
+    
+    .tas-touch {
+      min-height: 58vh;
+    }
+    
+    .tas-touch .count {
+      font-size: 72px;
+    }
+  }
+
+  /* Add these variables to your :root and theme definitions */
+  :root {
+    --modal-bg: #ffffff;
+    --modal-text: #0b1220;
+    --modal-border: transparent;
+    --modal-shadow: 0 10px 30px rgba(2,6,23,0.15);
+  }
+
+  /* Update the black theme to use dark modal */
+  html[data-accent="black"], body[data-accent="black"] {
+    --modal-bg: #1a1a1a;
+    --modal-text: #ffffff;
+    --modal-border: #2a2a2a;
+    --modal-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  }
+
+  /* Apply these variables to the modal */
+  .modal-box {
+    background: var(--modal-bg);
+    color: var(--modal-text);
+    border: 1px solid var(--modal-border);
+    box-shadow: var(--modal-shadow);
+  }
+
+  /* Ensure text colors adapt to theme */
+  .modal-box .small.muted {
+    color: var(--card-muted);
+  }
+
+  /* Add these variables to your :root and theme definitions */
+  :root {
+    --tas-bg: linear-gradient(180deg, rgba(255,255,255,0.65), rgba(255,255,255,0.3));
+    --tas-text: #0b1220;
+    --tas-muted: rgba(11,18,32,0.28);
+  }
+
+  /* Update the black theme to use dark tasbeeh touch area */
+  html[data-accent="black"], body[data-accent="black"] {
+    --tas-bg: linear-gradient(180deg, rgba(0,0,0,0.2), rgba(0,0,0,0.4));
+    --tas-text: #ffffff;
+    --tas-muted: rgba(255,255,255,0.4);
+  }
+
+  /* Apply these variables to the tasbeeh touch area */
+  .tas-touch {
+    background: var(--tas-bg);
+  }
+
+  .tas-touch .count,
+  .tas-touch .small-note {
+    color: var(--tas-text);
+  }
+
+  .tas-touch .tap-note {
+    color: var(--tas-muted);
+  }
+</style>
+</head>
+<body>
+  <!-- Splash Screen -->
+  <div id="splashScreen">
+    <div class="splash-logo">ن</div>
+    <div class="splash-hadith">آدمی اور شرک و کفر کے درمیان صرف نماز چھوڑ دینا ہے</div>
+    <div class="splash-translation">"Between a man and shirk (polytheism) and kufr (disbelief) stands his giving up prayer."</div>
+    <div class="splash-loader"></div>
+  </div>
+  <div id="toast">Message</div>
+
+  <div class="app" id="appRoot" style="opacity: 0; transition: opacity 0.5s ease-in;">
+    <div class="header">
+      <div class="brand">
+        <div class="logo">ن</div>
+        <div>
+          <h1>Namaz Tracker</h1>
+          <div class="subtitle">Personal Namaz App • Pray Hard</div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="small muted" id="dateNow"></div>
+
+        <!-- Cloud dropdown (accent selection) -->
+        <div class="cloud-wrap" id="cloudWrap">
+          <button class="cloud-btn" id="cloudBtn" title="Accents & themes">🎨</button>
+          <div class="cloud-menu" id="cloudMenu" aria-hidden="true">
+            <button class="emoji" data-accent="pink" title="Pink">🩷</button>
+            <button class="emoji" data-accent="yellow" title="Yellow">💛</button>
+            <button class="emoji" data-accent="purple" title="Purple">💜</button>
+            <button class="emoji" data-accent="black" title="Black">🖤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEFT: main -->
+    <div id="leftCol" class="animated-panel onscreen">
+      <div class="card today">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div class="small muted" id="greeting">Assalamualaikum</div>
+            <h2 id="todayHeading" style="margin:6px 0 0">Today — <span id="todayDateReadable"></span></h2>
+          </div>
+          <div style="text-align:right">
+            <div class="small muted">Today's score</div>
+            <div id="progressValue" style="font-weight:800;font-size:18px">0%</div>
+          </div>
+        </div>
+
+        <div class="prayer-list" id="prayerList"></div>
+
+        <div class="progress" title="Progress"><i id="progBar"></i></div>
+
+        <div class="stats-grid">
+          <div class="card" style="padding:10px;">
+            <div class="small muted">This Week</div>
+            <div id="weekCount" style="font-weight:800;font-size:18px">0 / 35</div>
+            <div class="small muted" style="margin-top:6px">Completed prayers this week</div>
+          </div>
+          <div class="card" style="padding:10px;">
+            <div class="small muted">This Month</div>
+            <div id="monthCount" style="font-weight:800;font-size:18px">0 / 150</div>
+            <div class="small muted" style="margin-top:6px">Completed prayers this month</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card calendar" id="calendarCard" style="margin-top:12px">
+        <div class="cal-head" style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <strong id="monthYear"></strong>
+            <div class="small muted" id="calSubtitle">Tap a day to view details</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn ghost" id="prevMonth">◀</button>
+            <button class="btn ghost" id="nextMonth">▶</button>
+            <button class="btn" id="todayBtn">Today</button>
+          </div>
+        </div>
+        <div class="cal-grid" id="calGridHeader" style="margin-bottom:6px">
+          <div class="small muted" style="text-align:center">Sun</div>
+          <div class="small muted" style="text-align:center">Mon</div>
+          <div class="small muted" style="text-align:center">Tue</div>
+          <div class="small muted" style="text-align:center">Wed</div>
+          <div class="small muted" style="text-align:center">Thu</div>
+          <div class="small muted" style="text-align:center">Fri</div>
+          <div class="small muted" style="text-align:center">Sat</div>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Streaks & Badges</strong><div class="small muted">Keep it up — small steps daily</div></div>
+          <div class="small muted" id="longestStreak">Longest: 0 days</div>
+        </div>
+        <div class="badges" id="badgeRow"></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Quick Stats</strong><div class="small muted">Visual summary</div></div>
+          <div class="small muted">Week vs Month</div>
+        </div>
+        <canvas id="statsChart"></canvas>
+      </div>
+
+      <div class="quick-stats-spacer"></div>
+    </div>
+
+    <!-- RIGHT: tasbeeh / settings / profile -->
+    <div id="rightCol" class="animated-panel offscreen-right rightcol">
+      <!-- Tasbeeh tappable area -->
+      <div class="card" id="tasbeehCard">
+        <div class="row" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Tasbeeh Counter</strong><div class="small muted">Tap anywhere in the area below</div></div>
+          <div style="display:flex;gap:6px">
+            <button class="btn ghost" id="tasReset">Reset</button>
+            <button class="btn" id="tasInc">+1</button>
+          </div>
+        </div>
+
+        <div id="tasTouchable" class="tas-touch" title="Tap anywhere here to increment">
+          <div style="text-align:center">
+            <div class="count" id="tasCount" style="font-weight:800;font-size:28px">0</div>
+            <div class="small-note small muted">Tap anywhere here to +1</div>
+          </div>
+          <div class="tap-note">Press here to Count +1</div>
+        </div>
+
+        <div id="tasInlineAlert" class="inline-alert">Reset tasbeeh? <button id="tasConfirmReset" class="btn ghost" style="margin-left:6px">Reset</button> <button id="tasCancelReset" class="btn ghost">Cancel</button></div>
+      </div>
+
+      <!-- Hadith Section (replaces Points) -->
+      <div class="card hadith-card" id="hadithCard" style="display:none">
+        <div class="hadith-nav">
+          <div>
+            <strong>Daily Hadith</strong>
+            <div class="small muted">Motivational sayings about prayer</div>
+          </div>
+          <button class="btn ghost" id="nextHadith">Next</button>
+        </div>
+        
+        <div id="hadithContainer">
+          <div id="hadithText" class="hadith-urdu"></div>
+          <div id="hadithTranslation" class="hadith-translation"></div>
+          <div id="hadithReference" class="hadith-reference"></div>
+        </div>
+        
+        <div class="hadith-counter">
+          <div class="small muted" id="hadithCounter">1/5</div>
+        </div>
+      </div>
+
+      <!-- Profile -->
+      <div class="card" id="profileCard">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div><strong>Profile</strong><div class="small muted">Tap to view / edit</div></div>
+          <div><button id="profileToggle" class="btn ghost">View</button></div>
+        </div>
+
+        <div id="profileView" style="margin-top:10px;display:none">
+          <div class="small muted">Name</div>
+          <div id="profileName" style="font-weight:800;margin-bottom:8px">—</div>
+          <div class="small muted">Age</div>
+          <div id="profileAge" style="font-weight:800;margin-bottom:8px">—</div>
+          <div class="small muted">Gender</div>
+          <div id="profileGender" style="font-weight:800;margin-bottom:8px">—</div>
+          <div style="margin-top:8px"><button id="editProfile" class="btn ghost">Edit</button></div>
+        </div>
+
+        <div id="profileEdit" style="margin-top:10px;display:none">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <input id="inputName" placeholder="Name" style="padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,0.06)" />
+            <input id="inputAge" type="number" placeholder="Age" style="padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,0.06)" />
+            <div>
+              <label style="margin-right:8px"><input type="radio" name="gender" value="Male" /> Male</label>
+              <label style="margin-right:8px"><input type="radio" name="gender" value="Female" /> Female</label>
+              <label><input type="radio" name="gender" value="Other" /> Other</label>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button id="saveProfile" class="btn">Save</button>
+              <button id="cancelProfile" class="btn ghost">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Backup/Import -->
+      <div class="card" id="backupCard">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Backup / Import</strong><div class="small muted">Export or import your local data</div></div>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button class="btn" id="exportBtn">Export JSON</button>
+          <label class="btn ghost" style="padding:8px 10px;cursor:pointer">Import<input type="file" id="importFile" accept=".json" style="display:none" /></label>
+        </div>
+        <div style="margin-top:10px" class="small muted">Data is saved locally on your device only.</div>
+      </div>
+
+      <!-- Settings -->
+      <div class="card" id="settingsCard">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Settings</strong><div class="small muted">Personalize</div></div>
+        </div>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="small muted">Accent:</div>
+            <button id="setPink" class="accent-btn">🩷</button>
+            <button id="setYellow" class="accent-btn">💛</button>
+            <button id="setPurple" class="accent-btn">💜</button>
+            <button id="setBlack" class="accent-btn">🖤</button>
+          </div>
+
+          <button class="btn ghost" id="clearAll">Clear All Data</button>
+          <div class="small muted" style="margin-top:6px">Note: Clearing removes all local progress including profile and theme.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
+  <div class="bottom-nav" id="bottomNav">
+    <button id="navHome" class="active">Home</button>
+    <button id="navTas">Tasbeeh</button>
+    <button id="navHadith">Hadith</button>
+    <button id="navMore">More</button>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalBackdrop" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-box">
+      <div id="modalTitle" style="font-weight:800;font-size:16px;margin-bottom:6px"></div>
+      <div id="modalMessage" class="small muted" style="font-size:14px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px" id="modalButtons"></div>
+    </div>
+  </div>
+
+<script>
+/* Namaz Tracker - Accents only + Smooth sliding everywhere
+   - Removed light/dark mode entirely
+   - Accent selection remains (black, purple, pink, yellow)
+   - Improved sliding animations for ALL page switches
+   - All functionality preserved
+*/
+
+const PRAYERS = [
+  {id:'fajr', label:'Fajr', hint:'Fajr — dawn'},
+  {id:'dhuhr', label:'Dhuhr', hint:'Dhuhr — noon'},
+  {id:'asr', label:'Asr', hint:'Afternoon'},
+  {id:'maghrib', label:'Maghrib', hint:'Sunset'},
+  {id:'isha', label:'Isha', hint:'Night'}
+];
+
+// Hadith data - Motivational sayings about prayer
+const HADITHS = [
+  {
+    urdu: "قیامت کے روز بندے سے سب سے پہلے اس کی نماز کا محاسبہ ہو گا، اگر وہ ٹھیک رہی تو کامیاب ہو گیا، اور اگر وہ خراب نکلی تو وہ ناکام و نامراد رہا",
+    translation: "The first deed that the servant will be called to account for on the Day of Judgment is the prayer. If it is sound, then the rest of his deeds will be sound; and if it is corrupted, then the rest of his deeds will be corrupted.",
+    reference: "Jami at Tirmidhi, 413"
+  },
+  {
+    urdu: "ہمارے اور منافقوں کے درمیان نماز معاہدہ ہے ۱؎، جس نے نماز ترک کر دی اس نے کفر کیا ۔",
+    translation: "The covenant that distinguishes between us and them is prayer; so whoever leaves it, he has committed Kufr",
+    reference: "Sunan Ibn Majah, 1079"
+  },
+  {
+    urdu: "آدمی اور شرک و کفر کے درمیان صرف نماز چھوڑ دینا ہے",
+    translation: "Between a man and shirk (polytheism) and kufr (disbelief) stands his giving up prayer.",
+    reference: "Sahih Muslim, 82b"
+  },
+  {
+    urdu: "جس نے نمازِ عصر چھوڑ دی، اس کے اعمال برباد ہو گئے۔",
+    translation: "Whoever misses the ‘Asr prayer, his deeds are nullified.",
+    reference: "Sahih al-Bukhari, 553"
+  },
+  {
+    urdu: "منافقوں پر فجر اور عشاء کی نماز سے زیادہ اور کوئی نماز بھاری نہیں",
+    translation: "No prayer is harder for the hypocrites than the Fajr and the `Isha' prayers",
+    reference: "Sahih Bukhari, 657"
+  }
+];
+
+const LS_KEY = 'namaz_v_offline_data';
+const TAS_KEY = 'namaz_v_offline_tas';
+const ACCENT_KEY = 'namaz_v_offline_accent';
+const USER_KEY = 'namaz_v_offline_user';
+
+let state = {
+  focusedDate: todayKey(),
+  viewYear: (new Date()).getFullYear(),
+  viewMonth: (new Date()).getMonth(),
+  data: load(LS_KEY) || {},
+  tas: Number(localStorage.getItem(TAS_KEY) || 0),
+  accent: localStorage.getItem(ACCENT_KEY) || 'purple',
+  user: load(USER_KEY) || null,
+  currentHadithIndex: 0
+};
+
+let cloudTimer = null;
+let mobileActive = 'home';
+
+function load(k){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null }catch(e){ return null } }
+function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+
+function todayKey(d=new Date()){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function readable(d){ const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString(undefined,{weekday:'short', year:'numeric', month:'short', day:'numeric'}) }
+
+function showToast(msg, ms=1400){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), ms); }
+function showModal(title,message,yesText='Yes',noText='Cancel',onYes=null){
+  const mb=document.getElementById('modalBackdrop'); document.getElementById('modalTitle').textContent = title; document.getElementById('modalMessage').textContent = message;
+  const btnRow=document.getElementById('modalButtons'); btnRow.innerHTML='';
+  const no=document.createElement('button'); no.className='btn ghost'; no.textContent=noText; no.onclick=()=>{ mb.classList.remove('show'); mb.setAttribute('aria-hidden','true'); };
+  const yes=document.createElement('button'); yes.className='btn'; yes.textContent=yesText; yes.onclick=()=>{ mb.classList.remove('show'); mb.setAttribute('aria-hidden','true'); if(onYes) onYes(); };
+  btnRow.appendChild(no); btnRow.appendChild(yes); mb.classList.add('show'); mb.setAttribute('aria-hidden','false');
+}
+
+/* Apply accent to DOM */
+function applyThemeToDOM(){
+  document.documentElement.setAttribute('data-accent', state.accent);
+  document.body.setAttribute('data-accent', state.accent);
+}
+
+/* Hadith functions */
+function renderHadith() {
+  const hadithText = document.getElementById('hadithText');
+  const hadithTranslation = document.getElementById('hadithTranslation');
+  const hadithReference = document.getElementById('hadithReference');
+  const hadithCounter = document.getElementById('hadithCounter');
+  
+  if (!hadithText || !hadithTranslation) return;
+  
+  const currentHadith = HADITHS[state.currentHadithIndex];
+  
+  hadithText.textContent = currentHadith.urdu;
+  hadithTranslation.textContent = currentHadith.translation;
+  hadithReference.textContent = currentHadith.reference;
+  hadithCounter.textContent = `${state.currentHadithIndex + 1}/${HADITHS.length}`;
+}
+
+function nextHadith() {
+  state.currentHadithIndex = (state.currentHadithIndex + 1) % HADITHS.length;
+  renderHadith();
+}
+
+/* ---------- Init ---------- */
+function init(){
+  // This function is now called from showSplashScreen after the splash
+  initApp();
+}
+
+/* Prayers rendering */
+function renderPrayerList(dateKey = todayKey()){
+  const c = document.getElementById('prayerList'); 
+  if (!c) return;
+  c.innerHTML='';
+  const day = state.data[dateKey] || {};
+  PRAYERS.forEach(p=>{
+    const done = !!day[p.id];
+    const div = document.createElement('div');
+    div.className = 'prayer' + (done ? '' : ' off');
+    div.title = p.hint;
+    div.innerHTML = `<div class="box">${p.label[0]}</div><div style="flex:1"><div style="font-weight:800">${p.label}</div><div class="small muted">${done ? 'Completed' : 'Not done'}</div></div><div style="min-width:60px;text-align:center">${done ? '✓' : '—'}</div>`;
+    div.onclick = ()=>{ togglePrayer(dateKey, p.id); };
+    c.appendChild(div);
+  });
+}
+function togglePrayer(dateKey, prayerId){
+  state.data[dateKey] = state.data[dateKey] || {};
+  state.data[dateKey][prayerId] = !state.data[dateKey][prayerId];
+  localStorage.setItem(LS_KEY, JSON.stringify(state.data));
+  // update UI immediately
+  renderPrayerList(state.focusedDate);
+  renderProgress();
+  renderStats();
+  renderCalendar();
+  renderBadges();
+  drawChart();
+}
+
+/* Progress */
+function calcProgressForDate(dateKey){
+  const day = state.data[dateKey] || {}; let count=0;
+  PRAYERS.forEach(p=>{ if(day[p.id]) count++; });
+  return {count, total: PRAYERS.length, percent: Math.round(count/PRAYERS.length*100)};
+}
+function weekCompleted(){
+  const now=new Date(); const start=new Date(now); start.setDate(now.getDate()-now.getDay()); let total=0;
+  for(let i=0;i<7;i++){ const dt=new Date(start); dt.setDate(start.getDate()+i); const k=todayKey(dt); const d=state.data[k]||{}; PRAYERS.forEach(p=>{ if(d[p.id]) total++; }); }
+  return total;
+}
+function daysInMonth(y,m){ return new Date(y,m+1,0).getDate(); }
+function monthCompleted(year=new Date().getFullYear(), month=new Date().getMonth()){
+  let total=0; const days=daysInMonth(year,month); for(let i=1;i<=days;i++){ const dt=new Date(year,month,i); const k=todayKey(dt); const d=state.data[k]||{}; PRAYERS.forEach(p=>{ if(d[p.id]) total++; }); } return total;
+}
+function renderProgress(){
+  const p = calcProgressForDate(todayKey());
+  const progressValue = document.getElementById('progressValue');
+  const progBar = document.getElementById('progBar');
+  const weekCount = document.getElementById('weekCount');
+  const monthCount = document.getElementById('monthCount');
+  
+  if (progressValue) progressValue.textContent = `${p.percent}%`;
+  if (progBar) progBar.style.width = p.percent + '%';
+  if (weekCount) weekCount.textContent = `${weekCompleted()} / ${7 * PRAYERS.length}`;
+  
+  const now=new Date();
+  if (monthCount) monthCount.textContent = `${monthCompleted(now.getFullYear(), now.getMonth())} / ${daysInMonth(now.getFullYear(), now.getMonth()) * PRAYERS.length}`;
+}
+
+/* Calendar */
+function renderCalendar(){
+  const g = document.getElementById('calGrid'); 
+  if (!g) return;
+  g.innerHTML='';
+  const year=state.viewYear, month=state.viewMonth;
+  const monthYearEl = document.getElementById('monthYear');
+  if (monthYearEl) monthYearEl.textContent = new Date(year,month,1).toLocaleString(undefined,{month:'long', year:'numeric'});
+  
+  const firstDay=new Date(year,month,1).getDay();
+  const total=daysInMonth(year,month);
+  for(let b=0;b<firstDay;b++){ const cell=document.createElement('div'); cell.className='cal-cell'; g.appendChild(cell); }
+  for(let d=1; d<=total; d++){
+    const dateObj=new Date(year,month,d); const key=todayKey(dateObj); const p=calcProgressForDate(key);
+    const cell=document.createElement('div'); cell.className='cal-cell'; if(key===todayKey()) cell.style.boxShadow = '0 6px 18px rgba(124,58,237,0.12)';
+    if(p.count===PRAYERS.length) cell.style.border = '2px solid rgba(0,0,0,0.04)';
+    cell.innerHTML = `<div style="font-weight:800">${d}</div><div class="small muted" style="margin-top:6px">${p.count}/${PRAYERS.length}</div>`;
+    cell.onclick = ()=>{ state.focusedDate = key; openDayDetail(key); };
+    g.appendChild(cell);
+  }
+}
+function openDayDetail(key){ 
+  state.focusedDate = key; 
+  renderPrayerList(key); 
+  const todayHeading = document.getElementById('todayHeading');
+  if (todayHeading) todayHeading.innerHTML = `Day — <span style="font-weight:700">${readable(key)}</span>`; 
+  window.scrollTo({top:0, behavior:'smooth'}); 
+}
+
+/* Badges & streaks (counts day as used if any prayer marked) */
+function dayUsed(dateKey){ const p=calcProgressForDate(dateKey); return p.count>0; }
+function dayFull(dateKey){ const p=calcProgressForDate(dateKey); return p.count===PRAYERS.length; }
+
+function currentStreakAny(){
+  let streak=0; let now=new Date();
+  for(let i=0;i<730;i++){ const dt=new Date(now); dt.setDate(now.getDate()-i); const k=todayKey(dt); if(dayUsed(k)) streak++; else break; }
+  return streak;
+}
+function currentFullStreak(){
+  let streak=0; let now=new Date();
+  for(let i=0;i<730;i++){ const dt=new Date(now); dt.setDate(now.getDate()-i); const k=todayKey(dt); if(dayFull(k)) streak++; else break; }
+  return streak;
+}
+function longestStreakAny(){
+  let best=0,cur=0;
+  for(let i=0;i<730;i++){ const dt=new Date(); dt.setDate(dt.getDate()-i); const k=todayKey(dt); if(dayUsed(k)) cur++; else { best=Math.max(best,cur); cur=0; } }
+  best=Math.max(best,cur); return best;
+}
+function renderBadges(){
+  const row=document.getElementById('badgeRow'); 
+  if (!row) return;
+  row.innerHTML='';
+  const streakAny=currentStreakAny(), fullStreak=currentFullStreak(), longestAny=longestStreakAny();
+  const longestStreakEl = document.getElementById('longestStreak');
+  if (longestStreakEl) longestStreakEl.textContent = `Longest: ${longestAny} days`;
+  
+  if(fullStreak>=7) row.appendChild(badgeDom('7 days full ✅'));
+  if(fullStreak>=30) row.appendChild(badgeDom('30 days full 🌙'));
+  if(Object.keys(state.data).length===0) row.appendChild(badgeDom('Welcome — Start Today'));
+  else row.appendChild(badgeDom(`${streakAny} day streak 🔥`));
+}
+function badgeDom(text){ const b=document.createElement('div'); b.className='badge'; b.textContent=text; return b; }
+
+/* Tasbeeh */
+function renderTas(){ 
+  const tasCount = document.getElementById('tasCount');
+  if (tasCount) tasCount.textContent = state.tas; 
+}
+function increaseTas(n=1){ state.tas += n; localStorage.setItem(TAS_KEY, state.tas); renderTas(); }
+
+/* Profile */
+function renderProfile(){ 
+  const pv=document.getElementById('profileView'), pe=document.getElementById('profileEdit'), btn=document.getElementById('profileToggle');
+  if(!state.user){ 
+    const profileName = document.getElementById('profileName');
+    const profileAge = document.getElementById('profileAge');
+    const profileGender = document.getElementById('profileGender');
+    
+    if (profileName) profileName.textContent='—'; 
+    if (profileAge) profileAge.textContent='—'; 
+    if (profileGender) profileGender.textContent='—'; 
+    if (btn) btn.textContent='Add'; 
+    if (pv) pv.style.display='none'; 
+    if (pe) pe.style.display='none'; 
+  }
+  else { 
+    const profileName = document.getElementById('profileName');
+    const profileAge = document.getElementById('profileAge');
+    const profileGender = document.getElementById('profileGender');
+    
+    if (profileName) profileName.textContent = state.user.name || '—'; 
+    if (profileAge) profileAge.textContent = state.user.age ? String(state.user.age) : '—'; 
+    if (profileGender) profileGender.textContent = state.user.gender || '—'; 
+    if (btn) btn.textContent='View'; 
+    if (pv) pv.style.display='block'; 
+    if (pe) pe.style.display='none'; 
+  }
+}
+
+/* Chart */
+function drawChart(){
+  const canvas = document.getElementById('statsChart');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+
+  // size for sharp rendering
+  const wCSS = canvas.clientWidth || 0;
+  const hCSS = canvas.clientHeight || 0;
+  canvas.width = wCSS * dpr;
+  canvas.height = hCSS * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // last 7 days counts
+  const last7 = [];
+  for (let i = 6; i >= 0; i--) {
+    const dt = new Date();
+    dt.setDate(dt.getDate() - i);
+    const k = todayKey(dt);
+    const p = calcProgressForDate(k);
+    last7.push(p.count);
+  }
+
+  ctx.clearRect(0, 0, wCSS, hCSS);
+
+  const max = Math.max(...last7, PRAYERS.length);
+  const padding = 12, gap = 8;
+  const barW = (wCSS - padding * 2 - gap * (last7.length - 1)) / last7.length;
+
+  // only flip colors if accent is "black"
+  const isBlack =
+    document.body.getAttribute('data-accent') === 'black' ||
+    document.documentElement.getAttribute('data-accent') === 'black';
+
+  // default (your original light theme)
+  let barColor   = 'rgba(0,0,0,0.06)';
+  let textColor  = '#111827';
+  let fadedColor = 'rgba(0,0,0,0.3)';
+
+  if (isBlack) {
+    const styles = getComputedStyle(document.body);
+    barColor   = styles.getPropertyValue('--chart-bar').trim()   || 'rgba(255,255,255,0.12)';
+    textColor  = styles.getPropertyValue('--chart-text').trim()  || '#f9fafb';
+    fadedColor = styles.getPropertyValue('--chart-muted').trim() || 'rgba(255,255,255,0.5)';
+  }
+
+  ctx.font = '11px system-ui, Arial';
+  ctx.textAlign = 'center';
+
+  last7.forEach((v, i) => {
+    const x = padding + i * (barW + gap);
+    const barH = (v / max) * (hCSS - 40);
+
+    // bar
+    ctx.fillStyle = barColor;
+    ctx.fillRect(x, hCSS - 30 - barH, barW, barH);
+
+    // value above bar
+    ctx.fillStyle = textColor;
+    ctx.fillText(v, x + barW / 2, hCSS - 34 - barH);
+
+    // weekday label
+    const dayLabel = new Date();
+    dayLabel.setDate(dayLabel.getDate() - (6 - i));
+    const short = dayLabel.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 3);
+
+    ctx.fillStyle = fadedColor;
+    ctx.fillText(short, x + barW / 2, hCSS - 8);
+  });
+}
+
+/* Attach events */
+function attachEvents(){
+  // cloud dropdown (accent selection)
+  const cloudBtn = document.getElementById('cloudBtn'), cloudMenu = document.getElementById('cloudMenu');
+  if (cloudBtn && cloudMenu) {
+    cloudBtn.onclick = (e)=> {
+      e.stopPropagation();
+      if(cloudMenu.classList.contains('show')) { closeCloudMenu(); return; }
+      openCloudMenu();
+    };
+    
+    function openCloudMenu(){
+      cloudMenu.classList.add('show'); cloudMenu.setAttribute('aria-hidden','false');
+      cloudMenu.style.opacity = '1'; cloudMenu.style.transform = 'translateY(0)';
+      // auto close after 3 seconds if no action
+      clearTimeout(cloudTimer);
+      cloudTimer = setTimeout(()=> closeCloudMenu(), 3000);
+    }
+    
+    function closeCloudMenu(){ cloudMenu.classList.remove('show'); cloudMenu.setAttribute('aria-hidden','true'); clearTimeout(cloudTimer); }
+    
+    // click outside to close
+    document.addEventListener('click', (ev)=> { 
+      if(!document.getElementById('cloudWrap')?.contains(ev.target)) closeCloudMenu(); 
+    });
+
+    // accent selection from cloud menu
+    Array.from(cloudMenu.querySelectorAll('button.emoji')).forEach(btn=> {
+      btn.onclick = (ev)=> {
+        const a = btn.getAttribute('data-accent');
+        state.accent = a; localStorage.setItem(ACCENT_KEY, state.accent);
+        applyThemeToDOM();
+        drawChart();
+        showToast((a==='pink'?'Pink':a==='yellow'?'Yellow':a==='black'?'Black':'Purple') + ' accent');
+        closeCloudMenu();
+      };
+    });
+  }
+
+  // settings accents (backup)
+  const setPink = document.getElementById('setPink');
+  const setYellow = document.getElementById('setYellow');
+  const setPurple = document.getElementById('setPurple');
+  const setBlack = document.getElementById('setBlack');
+  
+  if (setPink) setPink.onclick = ()=> { state.accent='pink'; localStorage.setItem(ACCENT_KEY, state.accent); applyThemeToDOM(); drawChart(); showToast('Pink accent'); }
+  if (setYellow) setYellow.onclick = ()=> { state.accent='yellow'; localStorage.setItem(ACCENT_KEY, state.accent); applyThemeToDOM(); drawChart(); showToast('Yellow accent'); }
+  if (setPurple) setPurple.onclick = ()=> { state.accent='purple'; localStorage.setItem(ACCENT_KEY, state.accent); applyThemeToDOM(); drawChart(); showToast('Purple accent'); }
+  if (setBlack) setBlack.onclick = ()=> { state.accent='black'; localStorage.setItem(ACCENT_KEY, state.accent); applyThemeToDOM(); drawChart(); showToast('Black accent'); }
+
+  // tasbeeh area & buttons
+  const tasTouchable = document.getElementById('tasTouchable');
+  const tasInc = document.getElementById('tasInc');
+  const tasReset = document.getElementById('tasReset');
+  const tasConfirmReset = document.getElementById('tasConfirmReset');
+  const tasCancelReset = document.getElementById('tasCancelReset');
+  
+  if (tasTouchable) tasTouchable.addEventListener('click', (e)=> { if(e.target.closest('button')) return; increaseTas(1); });
+  if (tasInc) tasInc.onclick = ()=> increaseTas(1);
+  if (tasReset) tasReset.onclick = ()=> document.getElementById('tasInlineAlert').classList.add('show');
+  if (tasConfirmReset) tasConfirmReset.onclick = ()=> { state.tas=0; localStorage.setItem(TAS_KEY, state.tas); renderTas(); document.getElementById('tasInlineAlert').classList.remove('show'); showToast('Tasbeeh reset'); };
+  if (tasCancelReset) tasCancelReset.onclick = ()=> document.getElementById('tasInlineAlert').classList.remove('show');
+
+  // Hadith navigation
+  const nextHadithBtn = document.getElementById('nextHadith');
+  if (nextHadithBtn) nextHadithBtn.addEventListener('click', nextHadith);
+
+  // spacebar increments (unless input focused)
+  window.addEventListener('keydown', (e)=>{ if(e.code === 'Space' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); increaseTas(1); } });
+
+  // calendar nav
+  const prevMonth = document.getElementById('prevMonth');
+  const nextMonth = document.getElementById('nextMonth');
+  const todayBtn = document.getElementById('todayBtn');
+  
+  if (prevMonth) prevMonth.onclick = ()=> { state.viewMonth--; if(state.viewMonth<0){ state.viewMonth=11; state.viewYear--; } renderCalendar(); }
+  if (nextMonth) nextMonth.onclick = ()=> { state.viewMonth++; if(state.viewMonth>11){ state.viewMonth=0; state.viewYear++; } renderCalendar(); }
+  if (todayBtn) todayBtn.onclick = ()=> { state.viewMonth=(new Date()).getMonth(); state.viewYear=(new Date()).getFullYear(); renderCalendar(); openDayDetail(todayKey()); }
+
+  // export/import
+  const exportBtn = document.getElementById('exportBtn');
+  const importFile = document.getElementById('importFile');
+  
+  if (exportBtn) exportBtn.onclick = ()=>{
+    const data = { meta:{exportedAt: new Date().toISOString()}, data: state.data, tas: state.tas, user: state.user, accent: state.accent };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob); 
+    const a = document.createElement('a'); 
+    a.href = url;
+    a.download = 'namaz_backup_' + (new Date()).toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a); 
+    a.click(); 
+    a.remove(); 
+    URL.revokeObjectURL(url);
+    
+    // Show device-specific guidance
+    if (/Android/i.test(navigator.userAgent)) {
+      showToast('Backup saved to Downloads folder', 3000);
+    } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      showToast('Check Downloads in Files app', 3000);
+    } else {
+      showToast('Backup download started', 2000);
+    }
+  };
+  
+  if (importFile) importFile.onchange = (ev)=>{ 
+    const f = ev.target.files[0]; 
+    if(!f) return; 
+    const r=new FileReader(); 
+    r.onload = e=>{ 
+      try{ 
+        const obj = JSON.parse(e.target.result); 
+        if(obj && obj.data){ 
+          showModal('Import data','Import will overwrite local data where keys conflict. Continue?','Import','Cancel', ()=>{ 
+            state.data = Object.assign({}, state.data, obj.data); 
+            if(typeof obj.tas === 'number') state.tas = obj.tas; 
+            if(obj.user){ state.user = obj.user; save(USER_KEY, state.user); } 
+            if(obj.accent){ state.accent = obj.accent; localStorage.setItem(ACCENT_KEY, state.accent); } 
+            localStorage.setItem(LS_KEY, JSON.stringify(state.data)); 
+            localStorage.setItem(TAS_KEY, state.tas); 
+            renderPrayerList(state.focusedDate); 
+            renderCalendar(); 
+            renderProgress(); 
+            renderBadges(); 
+            renderTas(); 
+            drawChart(); 
+            renderProfile(); 
+            applyThemeToDOM(); 
+            showToast('Import complete'); 
+          }); 
+        } else showToast('Invalid backup file'); 
+      } catch(err){ showToast('Invalid JSON file'); } 
+      ev.target.value=''; 
+    }; 
+    r.readAsText(f); 
+  };
+
+  // clear all (modal)
+  const clearAll = document.getElementById('clearAll');
+  if (clearAll) clearAll.onclick = ()=> {
+    showModal('Clear all data', 'This will erase all local data including prayers, tasbeeh, profile and accent settings. This cannot be undone. Proceed?', 'Clear', 'Cancel', ()=>{
+      localStorage.removeItem(LS_KEY); localStorage.removeItem(TAS_KEY); localStorage.removeItem(USER_KEY); localStorage.removeItem(ACCENT_KEY);
+      state.data = {}; state.tas = 0; state.user = null; state.accent = 'purple';
+      applyThemeToDOM(); renderPrayerList(state.focusedDate); renderCalendar(); renderProgress(); renderBadges(); renderTas(); drawChart(); renderProfile();
+      showToast('All data cleared');
+    });
+  };
+
+  // Profile view/edit
+  const profileToggle = document.getElementById('profileToggle');
+  const editProfile = document.getElementById('editProfile');
+  const cancelProfile = document.getElementById('cancelProfile');
+  const saveProfile = document.getElementById('saveProfile');
+  
+  if (profileToggle) profileToggle.onclick = ()=>{
+    const pv=document.getElementById('profileView'), pe=document.getElementById('profileEdit');
+    if(state.user){ 
+      if (pv) pv.style.display = pv.style.display==='block' ? 'none' : 'block'; 
+      return; 
+    }
+    if (pe) pe.style.display='block'; 
+    if (pv) pv.style.display='none'; 
+    const inputName = document.getElementById('inputName');
+    const inputAge = document.getElementById('inputAge');
+    
+    if (inputName) inputName.value = state.user ? state.user.name || '' : ''; 
+    if (inputAge) inputAge.value = state.user ? state.user.age || '' : '';
+    
+    const radios = document.getElementsByName('gender'); 
+    radios.forEach(r=> r.checked = (state.user && state.user.gender === r.value));
+  };
+  
+  if (editProfile) editProfile.onclick = ()=> { 
+    const pv=document.getElementById('profileView');
+    const pe=document.getElementById('profileEdit');
+    if (pv) pv.style.display='none'; 
+    if (pe) pe.style.display='block'; 
+  };
+  
+  if (cancelProfile) cancelProfile.onclick = ()=> { 
+    const pe=document.getElementById('profileEdit');
+    if (pe) pe.style.display='none'; 
+    renderProfile(); 
+  };
+  
+  if (saveProfile) saveProfile.onclick = ()=>{
+    const inputName = document.getElementById('inputName');
+    const inputAge = document.getElementById('inputAge');
+    
+    const name = inputName ? inputName.value.trim() : ''; 
+    const age = inputAge ? Number(inputAge.value) || null : null;
+    
+    const genders = document.getElementsByName('gender'); 
+    let gender=null; 
+    genders.forEach(g=>{ if(g.checked) gender=g.value; });
+    
+    state.user = { name: name || '—', age: age, gender: gender || '—' }; 
+    save(USER_KEY, state.user); 
+    
+    const pe=document.getElementById('profileEdit');
+    if (pe) pe.style.display='none'; 
+    renderProfile(); 
+    showToast('Profile saved');
+  };
+
+  // bottom nav
+  const navHome = document.getElementById('navHome');
+  const navTas = document.getElementById('navTas');
+  const navHadith = document.getElementById('navHadith');
+  const navMore = document.getElementById('navMore');
+  
+  if (navHome) navHome.addEventListener('click', ()=> setMobileActive('home', true));
+  if (navTas) navTas.addEventListener('click', ()=> setMobileActive('tas', true));
+  if (navHadith) navHadith.addEventListener('click', ()=> setMobileActive('hadith', true));
+  if (navMore) navMore.addEventListener('click', ()=> setMobileActive('more', true));
+
+  // slide: handle resize
+  window.addEventListener('resize', ()=>{ drawChart(); applyResponsiveLayout(); });
+
+  setInterval(()=>{ 
+    const dateNow = document.getElementById('dateNow');
+    if (dateNow) dateNow.textContent = (new Date()).toLocaleString(undefined,{month:'short',day:'numeric','hour':'numeric','minute':'numeric'}) 
+  }, 30000);
+
+  // swipe to change sections (mobile) - smooth and responsive
+  let tsx=0, tsy=0;
+  function onTouchStart(e){ const t=e.touches[0]; tsx=t.clientX; tsy=t.clientY; }
+  function onTouchEnd(e){ const t=e.changedTouches[0]; const dx=t.clientX - tsx, dy=t.clientY - tsy; if(Math.abs(dx)>60 && Math.abs(dx) > Math.abs(dy)){ const order=['home','tas','hadith','more']; let idx = order.indexOf(mobileActive); if(dx<0) idx = Math.min(order.length-1, idx+1); else idx = Math.max(0, idx-1); setMobileActive(order[idx], true); } }
+  document.addEventListener('touchstart', onTouchStart, {passive:true}); document.addEventListener('touchend', onTouchEnd, {passive:true});
+}
+
+/* Mobile layout & slide animations (unified & smooth) */
+function applyResponsiveLayout(){
+  if(window.innerWidth > 920){
+    // desktop: show both columns
+    const left = document.getElementById('leftCol'), right = document.getElementById('rightCol');
+    if (left) {
+      left.classList.add('onscreen'); 
+      left.classList.remove('offscreen-left','offscreen-right');
+    }
+    if (right) {
+      right.classList.remove('offscreen-left','offscreen-right'); 
+      right.classList.remove('onscreen');
+      Array.from(right.children).forEach(c => c.style.display = '');
+    }
+    setActiveNavButton('home');
+    const hadithCard = document.getElementById('hadithCard');
+    if (hadithCard) hadithCard.style.display='none';
+    // ensure right column positioned normally
+    if (right) right.style.transform = '';
+    if (left) left.style.transform = '';
+  } else {
+    // mobile: keep left or right visible depending on mobileActive
+    setMobileActive(mobileActive, false);
+  }
+}
+
+function setActiveNavButton(id){ 
+  ['navHome','navTas','navHadith','navMore'].forEach(n=>{
+    const el = document.getElementById(n);
+    if (el) el.classList.remove('active');
+  }); 
+  
+  if(id==='home') {
+    const el = document.getElementById('navHome');
+    if (el) el.classList.add('active');
+  }
+  if(id==='tas') {
+    const el = document.getElementById('navTas');
+    if (el) el.classList.add('active');
+  }
+  if(id==='hadith') {
+    const el = document.getElementById('navHadith');
+    if (el) el.classList.add('active');
+  }
+  if(id==='more') {
+    const el = document.getElementById('navMore');
+    if (el) el.classList.add('active');
+  }
+}
+
+function setMobileActive(name, setFocus=true){
+  const left = document.getElementById('leftCol'), right = document.getElementById('rightCol');
+  if(!left || !right) return;
+
+  // prepare right column children per tab (to ensure only requested cards visible)
+  if(name === 'home'){
+    // Show left, hide right content
+    animatePanel(left, 'in', false);    // enter from left (correct)
+    animatePanel(right, 'out', true);   // exit to right (FIXED)
+
+    Array.from(right.children).forEach(c=> c.style.display='none');
+    setActiveNavButton('home');
+    if(setFocus) openDayDetail(todayKey());
+  } else {
+    // show left -> slide out, and slide in right
+    if(name === 'tas'){
+      const tasbeehCard = document.getElementById('tasbeehCard');
+      const backupCard = document.getElementById('backupCard');
+      const settingsCard = document.getElementById('settingsCard');
+      const profileCard = document.getElementById('profileCard');
+      const hadithCard = document.getElementById('hadithCard');
+      
+      if (tasbeehCard) tasbeehCard.style.display=''; 
+      if (backupCard) backupCard.style.display='none';
+      if (settingsCard) settingsCard.style.display='none'; 
+      if (profileCard) profileCard.style.display='none'; 
+      if (hadithCard) hadithCard.style.display='none';
+    } else if(name === 'more'){
+      const tasbeehCard = document.getElementById('tasbeehCard');
+      const backupCard = document.getElementById('backupCard');
+      const settingsCard = document.getElementById('settingsCard');
+      const profileCard = document.getElementById('profileCard');
+      const hadithCard = document.getElementById('hadithCard');
+      
+      if (tasbeehCard) tasbeehCard.style.display='none'; 
+      if (backupCard) backupCard.style.display='';
+      if (settingsCard) settingsCard.style.display=''; 
+      if (profileCard) profileCard.style.display='';
+      if (hadithCard) hadithCard.style.display='none';
+    } else if(name === 'hadith'){
+      const tasbeehCard = document.getElementById('tasbeehCard');
+      const backupCard = document.getElementById('backupCard');
+      const settingsCard = document.getElementById('settingsCard');
+      const profileCard = document.getElementById('profileCard');
+      const hadithCard = document.getElementById('hadithCard');
+      
+      if (hadithCard) hadithCard.style.display=''; 
+      if (tasbeehCard) tasbeehCard.style.display='none'; 
+      if (backupCard) backupCard.style.display='none'; 
+      if (settingsCard) settingsCard.style.display='none'; 
+      if (profileCard) profileCard.style.display='none';
+    }
+    animatePanel(left, 'out', false);   // exit to left (FIXED)
+    animatePanel(right, 'in', true);    // enter from right (correct)
+
+    setActiveNavButton(name);
+  }
+  mobileActive = name;
+}
+
+/* Unified panel animator:
+   - panel: DOM element
+   - action: 'in' | 'out'
+   - fromRight: boolean (true = enters from right / exits to right)
+   Smooth transitions for both enter and exit.
+*/
+function animatePanel(panel, action, fromRight){
+  if(!panel) return;
+  const mobile = window.innerWidth <= 920;
+  if(!mobile){
+    // on desktop just ensure visibility states
+    panel.style.display = (action === 'in') ? '' : '';
+    return;
+  }
+
+  if(action === 'in'){
+    panel.style.display = '';
+    panel.classList.remove('offscreen-left','offscreen-right');
+    panel.classList.add('onscreen');
+    // start offscreen then animate to center
+    panel.style.transition = 'none';
+    panel.style.transform = fromRight ? 'translateX(100%)' : 'translateX(-100%)';
+    panel.style.opacity = 0;
+    requestAnimationFrame(()=> {
+      panel.style.transition = 'transform .36s cubic-bezier(.22,.9,.22,1), opacity .28s ease';
+      panel.style.transform = 'translateX(0)';
+      panel.style.opacity = 1;
+      setTimeout(()=> { panel.style.transition = ''; panel.style.transform=''; panel.style.opacity=''; }, 380);
+    });
+  } else { // out
+    panel.classList.remove('onscreen');
+    panel.classList.add(fromRight ? 'offscreen-right' : 'offscreen-left');
+    panel.style.transition = 'transform .36s cubic-bezier(.22,.9,.22,1), opacity .28s ease';
+    panel.style.transform = fromRight ? 'translateX(100%)' : 'translateX(-100%)';
+    panel.style.opacity = 0;
+    setTimeout(()=> { panel.style.display = 'none'; panel.style.transition = ''; panel.style.transform = ''; panel.style.opacity = ''; }, 380);
+  }
+}
+
+/* midnight update */
+function scheduleMidnightUpdate(){
+  const now = new Date(); const nextMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0,0,5); const ms = nextMid - now;
+  setTimeout(()=>{ state.viewMonth=(new Date()).getMonth(); state.viewYear=(new Date()).getFullYear(); state.focusedDate = todayKey(); 
+    const todayDateReadable = document.getElementById('todayDateReadable');
+    if (todayDateReadable) todayDateReadable.textContent = readable(todayKey()); 
+    renderPrayerList(); 
+    renderProgress(); 
+    renderCalendar(); 
+    renderBadges(); 
+    renderStats(); 
+    scheduleMidnightUpdate(); 
+  }, ms);
+}
+
+/* Splash screen functionality */
+function showSplashScreen() {
+  const splash = document.getElementById('splashScreen');
+  const appRoot = document.getElementById('appRoot');
+  
+  if (!splash || !appRoot) return;
+  
+  // Show splash screen initially
+  splash.style.display = 'flex';
+  appRoot.style.opacity = '0';
+  
+  // Hide splash after 4 seconds and show main app
+  setTimeout(() => {
+    splash.classList.add('fade-out');
+    setTimeout(() => {
+      splash.style.display = 'none';
+      appRoot.style.opacity = '1';
+      
+      // Initialize the app after splash is hidden
+      initApp();
+    }, 800); // Match the transition duration
+  }, 4000);
+}
+
+// Modify your existing init function
+function initApp() {
+  const dateNow = document.getElementById('dateNow');
+  const todayDateReadable = document.getElementById('todayDateReadable');
+  
+  if (dateNow) dateNow.textContent = (new Date()).toLocaleString(undefined,{month:'short',day:'numeric','hour':'numeric','minute':'numeric'});
+  if (todayDateReadable) todayDateReadable.textContent = readable(todayKey());
+  
+  applyThemeToDOM();
+  renderPrayerList();
+  renderProgress();
+  renderStats();
+  renderCalendar();
+  renderBadges();
+  renderTas();
+  renderProfile();
+  renderHadith();
+  attachEvents();
+  drawChart();
+  applyResponsiveLayout();
+  scheduleMidnightUpdate();
+}
+
+/* boot */
+window.addEventListener('load', () => { 
+  applyThemeToDOM(); 
+  showSplashScreen(); // Show splash screen first
+  state.viewMonth = (new Date()).getMonth(); 
+  state.viewYear = (new Date()).getFullYear(); 
+  
+  // Don't call these here - they'll be called after splash screen
+  // renderCalendar(); 
+  // openDayDetail(todayKey()); 
+  // renderTas(); 
+});
+
+/* helper used by many functions */
+function renderStats(){ 
+  const weekCount = document.getElementById('weekCount');
+  const monthCount = document.getElementById('monthCount');
+  
+  if (weekCount) weekCount.textContent = `${weekCompleted()} / ${7 * PRAYERS.length}`; 
+  const now=new Date(); 
+  if (monthCount) monthCount.textContent = `${monthCompleted(now.getFullYear(), now.getMonth())} / ${daysInMonth(now.getFullYear(), now.getMonth()) * PRAYERS.length}`; 
+  drawChart(); 
+}
+</script>
+</body>
+</html>
